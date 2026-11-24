@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PsicoCare | Bienestar Emocional y Citas Psicológicas</title>
+  <meta name="description" content="Plataforma demostrativa para agendar y administrar citas psicológicas." />
+  <meta name="theme-color" content="#0b1120" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#151e32',
+              950: '#090d16',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+    <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-200">
+
+  <!-- Contenedor de Notificaciones (Toast) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-[60] flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Modal de Confirmación Personalizado (sin alert/confirm nativo) -->
+  <div id="confirm-modal" class="fixed inset-0 z-[55] hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+      <div class="flex items-center gap-3 mb-3">
+        <div id="modal-icon-bg" class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-400 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+        </div>
+        <h3 id="modal-title" class="text-lg font-semibold text-white">Confirmar acción</h3>
+      </div>
+      <p id="modal-message" class="text-slate-400 text-sm leading-relaxed mb-6">¿Estás seguro de que deseas realizar esta acción?</p>
+      <div class="flex justify-end gap-3">
+        <button id="modal-cancel-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 transition cursor-pointer">
+          Cancelar
+        </button>
+        <button id="modal-confirm-btn" class="px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-rose-600 hover:bg-rose-500 transition shadow-lg shadow-rose-950/40 cursor-pointer">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL SALA DE VIDEOLLAMADA (TELEPSICOLOGÍA) ==================== -->
+  <div id="video-call-modal" class="fixed inset-0 z-50 hidden flex-col bg-slate-950/98 backdrop-blur-xl animate-fade-in">
+    <!-- Barra Superior de la Sala -->
+    <div class="border-b border-slate-800/90 bg-slate-900/90 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-video"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 id="vc-room-title" class="text-sm sm:text-base font-bold text-white">Sala Virtual de Telepsicología</h2>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              En línea &bull; Cifrado E2E
+            </span>
+          </div>
+          <p id="vc-room-subtitle" class="text-xs text-slate-400">Cita #CITA-1001 &bull; Dra. Elena Ríos</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 sm:gap-3">
+        <!-- Enlace de sala copiable -->
+        <div class="hidden md:flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
+          <i class="fa-solid fa-link text-xs text-teal-400"></i>
+          <input id="vc-room-link" type="text" readonly value="https://psicocare.meet/sala-1001"
+            class="bg-transparent text-xs text-slate-300 font-mono w-48 focus:outline-none" />
+          <button onclick="copyMeetingLink()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-medium text-teal-300 transition cursor-pointer">
+            Copiar enlace
+          </button>
+        </div>
+
+        <!-- Temporizador en vivo -->
+        <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm font-mono font-semibold text-white">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+          <span id="vc-timer">00:00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Área Central de Video y Panel Clínico -->
+    <div class="flex-grow overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-7xl w-full mx-auto">
+      
+      <!-- Videos (8 columnas) -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow min-h-[320px] sm:min-h-[400px]">
+          
+          <!-- Pantalla Remota (Paciente / Especialista) -->
+          <div class="relative rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/60 border border-slate-800 overflow-hidden flex flex-col items-center justify-center p-6 shadow-2xl min-h-[250px]">
+            <div class="absolute top-3.5 left-3.5 flex items-center gap-2 bg-slate-950/75 backdrop-blur-md border border-slate-800 px-3 py-1 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span id="vc-remote-role-label" class="text-xs font-medium text-slate-200">Paciente conectado</span>
+            </div>
+
+            <!-- Avatar animado con ondas de audio -->
+            <div class="relative flex items-center justify-center mb-4">
+              <div class="absolute w-24 h-24 rounded-full bg-teal-500/20 animate-pulse-ring"></div>
+              <div id="vc-remote-avatar" class="relative w-20 h-20 rounded-full bg-gradient-to-br from-teal-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-xl border-2 border-teal-400/40">
+                VG
+              </div>
+            </div>
+
+            <h3 id="vc-remote-name" class="text-base sm:text-lg font-bold text-white text-center">Valeria Gómez</h3>
+            <p id="vc-remote-status" class="text-xs text-teal-300 mt-1 flex items-center gap-1.5">
+              <i class="fa-solid fa-waveform-lines"></i> Audio activo en sala
+            </p>
+
+            <!-- Barras simuladas de voz -->
+            <div class="flex items-end gap-1 h-5 mt-4">
+              <span class="w-1 bg-teal-400 rounded-full h-2 animate-bounce" style="animation-delay: 0.1s"></span>
+              <span class="w-1 bg-teal-400 rounded-full h-4 animate-bounce" style="animation-delay: 0.25s"></span>
+              <span class="w-1 bg-indigo-400 rounded-full h-5 animate-bounce" style="animation-delay: 0.15s"></span>
+              <span class="w-1 bg-teal-400 rounded-full h-3 animate-bounce" style="animation-delay: 0.3s"></span>
+              <span class="w-1 bg-teal-400 rounded-full h-2 animate-bounce" style="animation-delay: 0.05s"></span>
+            </div>
+          </div>
+
+          <!-- Pantalla Local (Cámara real del dispositivo o Fallback elegante) -->
+          <div class="relative rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden flex flex-col items-center justify-center shadow-2xl min-h-[250px]">
+            <div class="absolute top-3.5 left-3.5 z-10 flex items-center gap-2 bg-slate-950/75 backdrop-blur-md border border-slate-800 px-3 py-1 rounded-full">
+              <span id="vc-cam-indicator-dot" class="w-2 h-2 rounded-full bg-teal-400"></span>
+              <span id="vc-local-label" class="text-xs font-medium text-slate-200">Tú (Cámara en vivo)</span>
+            </div>
+
+            <!-- Video real HTML5 -->
+            <video id="vc-local-video" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100 hidden"></video>
+
+            <!-- Fallback cuando no hay cámara o está apagada -->
+            <div id="vc-local-fallback" class="flex flex-col items-center justify-center p-6 text-center">
+              <div class="w-20 h-20 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-2xl mb-3">
+                <i id="vc-fallback-icon" class="fa-solid fa-user-doctor"></i>
+              </div>
+              <p id="vc-fallback-title" class="text-sm font-semibold text-white">Cámara en espera</p>
+              <p id="vc-fallback-desc" class="text-xs text-slate-400 mt-1 max-w-xs">
+                Conectando dispositivo de video o cámara desactivada por el usuario.
+              </p>
+            </div>
+
+            <!-- Indicador de micrófono silenciado en pantalla -->
+            <div id="vc-muted-badge" class="hidden absolute bottom-3.5 right-3.5 bg-rose-600/90 text-white px-2.5 py-1 rounded-lg text-[11px] font-semibold items-center gap-1.5">
+              <i class="fa-solid fa-microphone-slash"></i> Silenciado
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Botonera de Controles de Videollamada -->
+        <div class="bg-slate-900/95 border border-slate-800 rounded-2xl p-3.5 flex flex-wrap items-center justify-center gap-3 shadow-xl">
+          <button id="btn-toggle-mic" onclick="toggleMicrophone()"
+            class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer">
+            <i id="icon-mic" class="fa-solid fa-microphone text-teal-400"></i>
+            <span id="label-mic">Silenciar</span>
+          </button>
+
+          <button id="btn-toggle-cam" onclick="toggleCamera()"
+            class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer">
+            <i id="icon-cam" class="fa-solid fa-video text-teal-400"></i>
+            <span id="label-cam">Apagar Cámara</span>
+          </button>
+
+          <button id="btn-share-screen" onclick="toggleScreenShare()"
+            class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-desktop text-indigo-400"></i>
+            <span id="label-screen">Compartir Pantalla</span>
+          </button>
+
+          <button onclick="copyMeetingLink()"
+            class="md:hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-medium transition flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-link"></i>
+            <span>Copiar Link</span>
+          </button>
+
+          <button onclick="endVideoCall()"
+            class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-rose-950/50 transition flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-phone-slash"></i>
+            <span>Finalizar Llamada</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Ficha Clínica y Notas de Sesión (4 columnas) -->
+      <div class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col justify-between gap-4">
+        <div class="space-y-4">
+          <div class="flex items-center gap-2.5 pb-3 border-b border-slate-800">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+              <i class="fa-solid fa-file-medical"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Ficha de la Cita Asignada</h3>
+              <p class="text-[11px] text-slate-400">Información confidencial de consulta</p>
+            </div>
+          </div>
+
+          <div class="space-y-2.5 text-xs">
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/90">
+              <span class="text-slate-500 block">Paciente:</span>
+              <span id="vc-info-patient" class="font-bold text-white text-sm">Valeria Gómez</span>
+              <span id="vc-info-email" class="text-slate-400 block mt-0.5">valeria.gomez@correo.com</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/90">
+              <span class="text-slate-500 block">Psicólogo/a Asignado:</span>
+              <span id="vc-info-psychologist" class="font-semibold text-teal-300">Dra. Elena Ríos</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800/90 space-y-1">
+              <span class="text-slate-500 block">Motivo de consulta ("¿De qué está mal?"):</span>
+              <span id="vc-info-reason" class="inline-block px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold">Ansiedad</span>
+              <p id="vc-info-desc" class="text-slate-300 italic mt-1 leading-relaxed">"Descripción del síntoma..."</p>
+            </div>
+          </div>
+
+          <!-- Notas clínicas rápidas (especialmente útiles para la administradora/psicóloga) -->
+          <div id="vc-notes-wrapper">
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">
+              <i class="fa-solid fa-pen-to-square text-teal-400 mr-1"></i>Notas clínicas de la sesión:
+            </label>
+            <textarea id="vc-clinical-notes" rows="4"
+              placeholder="Escribe observaciones, evolución o acuerdos terapéuticos durante la videollamada..."
+              class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition resize-none"></textarea>
+            <button onclick="saveSessionNotes()" class="mt-2 w-full py-2 px-3 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 border border-teal-500/30 text-teal-300 text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i> Guardar notas en la cita
+            </button>
+          </div>
+        </div>
+
+        <div class="text-[11px] text-slate-500 border-t border-slate-800/80 pt-3 flex items-center justify-between">
+          <span><i class="fa-solid fa-shield-halved text-teal-500 mr-1"></i>Sala privada PsicoCare</span>
+          <span id="vc-info-datetime">10:30 AM</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Barra de Navegación Superior -->
+  <header class="sticky top-0 z-40 bg-slate-900/85 backdrop-blur-md border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <!-- Marca / Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
+          <i class="fa-solid fa-brain text-white text-lg"></i>
+        </div>
+        <div>
+          <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-teal-300 via-cyan-200 to-indigo-300 bg-clip-text text-transparent">
+            PsicoCare
+          </span>
+          <p class="text-[11px] text-slate-400 hidden sm:block">Centro de Bienestar Psicológico</p>
+        </div>
+      </div>
+
+      <!-- Información de Sesión Activa (oculta en login) -->
+      <div id="navbar-session" class="hidden items-center gap-3 sm:gap-4">
+        <div class="flex items-center gap-2.5 bg-slate-800/80 border border-slate-700/70 px-3.5 py-1.5 rounded-full">
+          <span id="nav-role-badge" class="w-2.5 h-2.5 rounded-full bg-teal-400 animate-pulse"></span>
+          <div class="text-xs sm:text-sm">
+            <span id="nav-user-name" class="font-medium text-slate-100">Usuario</span>
+            <span id="nav-user-role" class="text-slate-400 ml-1 hidden sm:inline">(Paciente)</span>
+          </div>
+        </div>
+        <button onclick="logout()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition cursor-pointer">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="flex-grow flex flex-col">
+
+    <!-- ==================== VISTA 1: PANTALLA DE ACCESO (LOGIN) ==================== -->
+    <section id="view-login" class="flex-grow flex items-center justify-center px-4 py-10 relative overflow-hidden">
+      <!-- Decoración ambiental sutil -->
+      <div class="absolute top-1/4 -left-24 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute bottom-1/4 -right-24 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-fade-in">
+        
+        <!-- Columna Izquierda: Bienvenida e Información -->
+        <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950/60 p-8 sm:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800">
+          <div>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-teal-500/10 text-teal-300 border border-teal-500/20 mb-6">
+              <i class="fa-solid fa-sparkles"></i> Espacio Seguro y Confidencial
+            </span>
+            <h1 class="text-2xl sm:text-3xl font-bold text-white leading-tight mb-4">
+              Tu salud mental merece atención profesional y cálida.
+            </h1>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Agenda tu sesión psicológica en minutos, elige al especialista ideal para lo que estás atravesando y lleva el control de tu bienestar.
+            </p>
+          </div>
+
+          <div class="space-y-3 pt-4 border-t border-slate-800/80">
+            <div class="flex items-center gap-3 text-xs text-slate-300">
+              <div class="w-8 h-8 rounded-lg bg-teal-500/15 text-teal-400 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-user-doctor"></i>
+              </div>
+              <span>Especialistas certificados en diversas áreas</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-300">
+              <div class="w-8 h-8 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-video"></i>
+              </div>
+              <span>Modalidad Virtual o Presencial flexible</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna Derecha: Formularios de Ingreso por Rol -->
+        <div class="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center">
+          <!-- Selector de Rol (Tabs) -->
+          <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-950 border border-slate-800 rounded-2xl mb-7">
+            <button id="tab-patient" onclick="switchLoginRole('patient')" class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all bg-teal-600 text-white shadow-lg shadow-teal-950/50 cursor-pointer">
+              <i class="fa-solid fa-heart-pulse"></i>
+              <span>Soy Paciente</span>
+            </button>
+            <button id="tab-admin" onclick="switchLoginRole('admin')" class="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Administrador</span>
+            </button>
+          </div>
+
+          <!-- FORMULARIO PACIENTE -->
+          <form id="form-login-patient" onsubmit="handlePatientLogin(event)" class="space-y-4 animate-fade-in">
+            <div>
+              <h2 class="text-xl font-bold text-white">Ingreso de Paciente</h2>
+              <p class="text-xs text-slate-400 mt-1">Ingresa tus datos para agendar o revisar tus citas psicológicas.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Nombre completo *</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <i class="fa-solid fa-user"></i>
+                </span>
+                <input type="text" id="patient-name-input" required placeholder="Ej. Camila Fernández"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Correo electrónico *</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <i class="fa-solid fa-envelope"></i>
+                </span>
+                <input type="email" id="patient-email-input" required placeholder="camila@correo.com"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Teléfono / WhatsApp (opcional)</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <i class="fa-solid fa-phone"></i>
+                </span>
+                <input type="tel" id="patient-phone-input" placeholder="+51 987 654 321"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition" />
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/20 transition flex items-center justify-center gap-2 cursor-pointer mt-2">
+              <span>Continuar al Portal del Paciente</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <!-- Acceso rápido de demostración para paciente -->
+            <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+              <span>¿Quieres probar rápido?</span>
+              <button type="button" onclick="fillDemoPatient()" class="text-teal-400 hover:text-teal-300 font-medium underline underline-offset-2 cursor-pointer">
+                Usar cuenta demo (Valeria Gómez)
+              </button>
+            </div>
+          </form>
+
+          <!-- FORMULARIO ADMINISTRADOR -->
+          <form id="form-login-admin" onsubmit="handleAdminLogin(event)" class="space-y-4 hidden animate-fade-in">
+            <div>
+              <h2 class="text-xl font-bold text-white">Acceso Administrativo</h2>
+              <p class="text-xs text-slate-400 mt-1">Panel exclusivo para gestión de pacientes, especialistas y citas.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Usuario Administrador</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <i class="fa-solid fa-user-shield"></i>
+                </span>
+                <input type="text" id="admin-user-input" required placeholder="admin"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1.5">Contraseña</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <i class="fa-solid fa-lock"></i>
+                </span>
+                <input type="password" id="admin-pass-input" required placeholder="••••••••"
+                  class="w-full pl-10 pr-11 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition" />
+                <button type="button" onclick="toggleAdminPassword()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer">
+                  <i id="admin-eye-icon" class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tarjeta informativa con credenciales de acceso -->
+            <div class="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="text-xs text-indigo-200 space-y-0.5">
+                <p class="font-semibold text-indigo-300"><i class="fa-solid fa-key mr-1.5"></i>Credenciales de Administrador:</p>
+                <p>Usuario: <code class="bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 font-mono">admin</code> &bull; Contraseña: <code class="bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 font-mono">admin1234</code></p>
+              </div>
+              <button type="button" onclick="fillDemoAdmin()" class="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/30 text-indigo-200 text-xs font-medium transition shrink-0 cursor-pointer">
+                Autocompletar
+              </button>
+            </div>
+
+            <button type="submit" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-500/25 transition flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-right-to-bracket"></i>
+              <span>Ingresar al Panel Administrador</span>
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== VISTA 2: PANEL DEL PACIENTE ==================== -->
+    <section id="view-patient" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+      
+      <!-- Banner de Bienvenida del Paciente -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-teal-400">Portal del Paciente</span>
+          <h1 class="text-2xl sm:text-3xl font-bold text-white mt-1">
+            Hola, <span id="patient-welcome-name" class="text-teal-300">Paciente</span>
+          </h1>
+          <p class="text-slate-400 text-sm mt-1">
+            Selecciona el especialista con el que te sientas más cómoda y cuéntanos cómo te sientes hoy.
+          </p>
+        </div>
+        <div class="flex items-center gap-3 bg-slate-950/70 border border-slate-800 px-4 py-3 rounded-2xl">
+          <div class="w-10 h-10 rounded-xl bg-teal-500/15 text-teal-400 flex items-center justify-center">
+            <i class="fa-solid fa-calendar-check text-lg"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400">Tus citas registradas</p>
+            <p id="patient-total-count" class="text-lg font-bold text-white">0 citas</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- COLUMNA IZQUIERDA (7 cols): FORMULARIO PARA AGENDAR CITA -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
+            <div class="w-9 h-9 rounded-xl bg-teal-500/15 text-teal-400 flex items-center justify-center">
+              <i class="fa-solid fa-calendar-plus"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white">Agendar Nueva Cita Psicológica</h2>
+              <p class="text-xs text-slate-400">Completa los 3 pasos para reservar tu sesión</p>
+            </div>
+          </div>
+
+          <form id="appointment-form" onsubmit="handleCreateAppointment(event)" class="space-y-6">
+            
+            <!-- PASO 1: Escoger Psicólogo/a -->
+            <div>
+              <label class="block text-sm font-semibold text-slate-200 mb-3">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 text-xs mr-1.5">1</span>
+                Elige tu Psicólogo/a especialista *
+              </label>
+              <div id="psychologists-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <!-- Se renderiza dinámicamente con JS -->
+              </div>
+              <input type="hidden" id="selected-psychologist-id" required />
+            </div>
+
+            <!-- PASO 2: ¿De qué te sientes mal? (Motivo de consulta) -->
+            <div>
+              <label class="block text-sm font-semibold text-slate-200 mb-3">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 text-xs mr-1.5">2</span>
+                ¿De qué te sientes mal o cuál es tu motivo de consulta? *
+              </label>
+              
+              <div id="reasons-grid" class="flex flex-wrap gap-2 mb-3.5">
+                <!-- Chips de motivos generados por JS -->
+              </div>
+              <input type="hidden" id="selected-reason" required />
+
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">
+                Cuéntanos brevemente cómo te sientes o qué te preocupa *
+              </label>
+              <textarea id="reason-description" rows="3" required
+                placeholder="Ej. Últimamente me cuesta dormir, siento mucha presión en el trabajo y ataques de ansiedad por las tardes..."
+                class="w-full p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition resize-none"></textarea>
+            </div>
+
+            <!-- PASO 3: Fecha, Hora y Modalidad -->
+            <div>
+              <label class="block text-sm font-semibold text-slate-200 mb-3">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 text-xs mr-1.5">3</span>
+                Fecha, horario y modalidad *
+              </label>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1.5">Fecha deseada *</label>
+                  <input type="date" id="appointment-date" required
+                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1.5">Horario disponible *</label>
+                  <select id="appointment-time" required
+                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-teal-500 transition">
+                    <option value="">Selecciona una hora</option>
+                    <option value="09:00 AM">09:00 AM - Mañana</option>
+                    <option value="10:30 AM">10:30 AM - Mañana</option>
+                    <option value="12:00 PM">12:00 PM - Mediodía</option>
+                    <option value="03:00 PM">03:00 PM - Tarde</option>
+                    <option value="04:30 PM">04:30 PM - Tarde</option>
+                    <option value="06:00 PM">06:00 PM - Noche</option>
+                    <option value="07:30 PM">07:30 PM - Noche</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Modalidad -->
+              <div class="grid grid-cols-2 gap-3">
+                <label class="cursor-pointer">
+                  <input type="radio" name="modality" value="Virtual (Videollamada)" checked class="peer sr-only" />
+                  <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 peer-checked:border-teal-500 peer-checked:bg-teal-500/10 flex items-center gap-3 transition">
+                    <i class="fa-solid fa-video text-teal-400"></i>
+                    <div>
+                      <p class="text-xs font-semibold text-white">Virtual</p>
+                      <p class="text-[11px] text-slate-400">Videollamada privada</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label class="cursor-pointer">
+                  <input type="radio" name="modality" value="Presencial (Consultorio)" class="peer sr-only" />
+                  <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 flex items-center gap-3 transition">
+                    <i class="fa-solid fa-building text-indigo-400"></i>
+                    <div>
+                      <p class="text-xs font-semibold text-white">Presencial</p>
+                      <p class="text-[11px] text-slate-400">En sede central</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/25 transition flex items-center justify-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-check-circle"></i>
+              <span>Confirmar y Agendar Cita</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- COLUMNA DERECHA (5 cols): MIS CITAS AGENDADAS -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+          <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+              </div>
+              <div>
+                <h2 class="text-lg font-bold text-white">Mis Citas</h2>
+                <p class="text-xs text-slate-400">Historial y estado de tus sesiones</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="patient-appointments-list" class="space-y-4">
+            <!-- Se llena dinámicamente -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== VISTA 3: PANEL DEL ADMINISTRADOR ==================== -->
+    <section id="view-admin" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+      
+      <!-- Cabecera Admin -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-400">
+            <i class="fa-solid fa-shield-halved"></i> Panel de Control Administrativo
+          </span>
+          <h1 class="text-2xl sm:text-3xl font-bold text-white mt-1">Gestión de Pacientes y Citas</h1>
+          <p class="text-slate-400 text-sm mt-0.5">Supervisa los diagnósticos iniciales, psicólogos asignados y estados de atención.</p>
+        </div>
+        <button onclick="resetDemoData()" class="self-start sm:self-auto px-4 py-2.5 rounded-xl text-xs font-medium text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700 transition flex items-center gap-2 cursor-pointer">
+          <i class="fa-solid fa-rotate"></i>
+          <span>Restaurar datos demo</span>
+        </button>
+      </div>
+
+      <!-- Tarjetas de Estadísticas Rápidas -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-calendar-days text-xl"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Total Citas</p>
+            <p id="stat-total" class="text-2xl font-bold text-white mt-0.5">0</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-hourglass-half text-xl"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Pendientes</p>
+            <p id="stat-pending" class="text-2xl font-bold text-amber-300 mt-0.5">0</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-teal-500/15 text-teal-400 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-circle-check text-xl"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Confirmadas</p>
+            <p id="stat-confirmed" class="text-2xl font-bold text-teal-300 mt-0.5">0</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-users text-xl"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Pacientes Únicos</p>
+            <p id="stat-patients" class="text-2xl font-bold text-purple-300 mt-0.5">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Búsqueda y Filtros -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row gap-3">
+        <div class="relative flex-grow">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <input type="text" id="admin-search-input" oninput="renderAdminDashboard()"
+            placeholder="Buscar paciente por nombre, correo o motivo..."
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition" />
+        </div>
+
+        <select id="admin-filter-psychologist" onchange="renderAdminDashboard()"
+          class="px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+          <option value="all">Todos los psicólogos</option>
+        </select>
+
+        <select id="admin-filter-status" onchange="renderAdminDashboard()"
+          class="px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+          <option value="all">Todos los estados</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Confirmada">Confirmada</option>
+          <option value="Completada">Completada</option>
+          <option value="Cancelada">Cancelada</option>
+        </select>
+      </div>
+
+      <!-- Lista / Tabla Responsiva de Pacientes y Citas -->
+      <div id="admin-appointments-container" class="space-y-4">
+        <!-- Se renderizan tarjetas detalladas y responsivas de cada cita/paciente -->
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Pie de página -->
+  <footer class="border-t border-slate-800/70 bg-slate-950 py-6 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <p>&copy; 2026 PsicoCare — Plataforma de Salud Mental y Bienestar Emocional.</p>
+      <p>Confidencialidad garantizada &bull; Atención Virtual y Presencial</p>
+    </div>
+  </footer>
+
+  <!-- ==================== LÓGICA JAVASCRIPT ==================== -->
+  <script src="js/app.js" defer></script>
+
+</body>
+</html>

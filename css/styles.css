@@ -1,0 +1,45 @@
+body {
+      background-color: #0b1120;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Scrollbar personalizado oscuro */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Animaciones suaves */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.35s ease-out forwards;
+    }
+
+    @keyframes pulseRing {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      70% { transform: scale(1.25); opacity: 0; }
+      100% { transform: scale(1.25); opacity: 0; }
+    }
+    .animate-pulse-ring {
+      animation: pulseRing 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+
+    /* Estilo para inputs de fecha/hora en modo oscuro */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8);
+      cursor: pointer;
+    }
